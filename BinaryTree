@@ -1,0 +1,277 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace BinaryTree
+{
+    public class BinaryTreeSearch<K,D>  where K : IComparable<K>
+    {
+        private int Size;
+        private Node root;
+        private readonly IComparer<K> comparator;
+        //1
+        public BinaryTreeSearch() : this(Comparer<K>.Default)
+        {
+
+        }
+        //2
+        public BinaryTreeSearch(IComparer<K> comparator)//2 пункт
+        {
+            this.comparator = comparator;
+            
+            root = null;
+        }
+        private class Node
+        {
+            public D Data;
+            public K Key;
+            public Node left;
+            public Node right;
+            public Node(K key, D data)
+            {
+                this.Key = key;
+                this.Data = data;
+                left = null;right=null;
+            }
+        }
+        
+        //10 добавление
+        public void Put(K k,D data)//добавление
+        {
+            Node current = new Node(k, data);
+            if(root == null)
+            {
+                root = current;
+                Size++;
+                return;
+            }
+            else
+            {
+               bool add= AddRec(root, current);
+                if (add) Size++;
+            }
+           
+        }
+        private bool AddRec(Node current, Node newNode)
+        {
+            int compresult = comparator.Compare(newNode.Key, current.Key);
+            if (compresult < 0)
+            {
+                if (current.left == null)
+                {
+                    current.left = newNode;
+                    return true;
+                }
+                else
+                {
+                    return AddRec(current.left,newNode);
+                }
+            }
+            else if (compresult > 0)
+            {
+                if(current.right == null)
+                {
+                    current.right = newNode;
+                    return true;
+                }
+                else
+                {
+                   return AddRec(current.right,newNode); 
+                }
+            }
+            else
+            {
+                current.Data = newNode.Data;
+                return false;
+            }
+        }
+        //11 удаление
+        public void Remove(K key)//удаление
+        {
+            bool removed;
+            root = RemoveRec(root, key, out removed);
+            if (removed) Size--;
+
+        }
+        private Node RemoveRec(Node current, K key, out bool removed)
+        {
+            if(current==null)
+            {
+                removed = false;
+                return null;
+            }               
+            int compres=comparator.Compare(key, current.Key);
+            if (compres < 0)
+            {
+                current.left=RemoveRec(current.left,key, out removed);
+                return current;
+            }
+            else if (compres > 0)
+            {
+                current.right = RemoveRec(current.right, key, out removed);
+                return current;
+            }
+            else
+            {
+                removed = true;
+                if (current.right == null && current.left == null)
+                {
+                    current = null;
+                    return null;
+                }
+                else if (current.right == null && current.left != null)
+                {
+                    return current.left;
+                }
+                else if (current.right != null && current.left == null)
+                {
+                    return current.right;
+                }
+                else
+                {
+
+                    Node min = FindMin(current.right);
+                    current.Key = min.Key;
+                    current.Data = min.Data;
+
+                    bool d;
+                    current.right = RemoveRec(current.right, min.Key, out d);
+                    return current;
+
+                }
+            }
+
+
+        }
+        private Node FindMin(Node node)
+        {
+            while (node.left != null)
+                node = node.left;
+            return node;
+        }
+        //3
+        public void Clear()
+        {
+            root = null;
+            Size = 0;
+        }
+        //4
+        public bool ContainsKey(K key)
+        {
+            Node current = root;
+            
+            while (current != null)
+            {
+                int comp = comparator.Compare(key, current.Key);
+                if (comp < 0) current = current.left;
+                else if(comp > 0) current=current.right;
+                else
+                {
+                    return true;
+                }
+            }
+            return false;
+
+        }
+        //5
+        public bool ContainsValue(D value)
+        {
+            bool found;
+            ContainsValueRec(root, value, out found);
+            return found;
+        }
+
+        private void ContainsValueRec(Node node, D value, out bool found)
+        {
+            if (node == null)
+            {
+                found = false;
+                return;
+            }
+
+            if (EqualityComparer<D>.Default.Equals(node.Data, value))
+            {
+                found = true;
+                return;
+            }
+
+            bool leftFound;
+            ContainsValueRec(node.left, value, out leftFound);
+            if (leftFound)
+            {
+                found = true;
+                return;
+            }
+
+            bool rightFound;
+            ContainsValueRec(node.right, value, out rightFound);
+            found = rightFound;
+        }
+        //6
+        public List<KeyValuePair<K, D>> EntrySet()
+        {
+            var list = new List<KeyValuePair<K, D>>();
+            AddList(root, list);
+            return list;
+        }
+
+        private void AddList(Node node, List<KeyValuePair<K, D>> list)
+        {
+            if (node == null) return;
+
+            AddList(node.left, list);
+            list.Add(new KeyValuePair<K, D>(node.Key, node.Data));
+            AddList(node.right, list);
+        }
+        //7
+        public D Get(K key)
+        {
+            D data = getValue(root, key);
+            return data;
+        }
+        private D getValue(Node node, K key)
+        {
+            Node current = node;
+            if (current == null)
+            {
+                return default;
+            }
+            int comp = comparator.Compare(key, current.Key);
+            if(comp<0)
+            {
+                current = current.left;
+                return getValue(current, key);
+            }
+            else if(comp>0)
+            {
+                current = current.right;
+                return getValue(current, key);
+            }
+            else
+            {
+                return current.Data;
+            }
+        }
+        //8
+        public bool IsEmpty()
+        {
+            if(Size==0) return true;
+            return false;
+        }
+        //12
+        public int size()
+        {
+           
+            return Size;
+        }
+    }
+
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+        }
+    }
+}
