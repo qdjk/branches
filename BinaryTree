@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BinaryTree
 {
-    public class BinaryTreeSearch<K,D>  where K : IComparable<K>
+    public class BinaryTreeSearch<K, D> where K : IComparable<K>
     {
         private int Size;
         private Node root;
@@ -20,7 +20,7 @@ namespace BinaryTree
         public BinaryTreeSearch(IComparer<K> comparator)//2 пункт
         {
             this.comparator = comparator;
-            
+
             root = null;
         }
         private class Node
@@ -33,15 +33,15 @@ namespace BinaryTree
             {
                 this.Key = key;
                 this.Data = data;
-                left = null;right=null;
+                left = null; right = null;
             }
         }
-        
+
         //10 добавление
-        public void Put(K k,D data)//добавление
+        public void Put(K k, D data)//добавление
         {
             Node current = new Node(k, data);
-            if(root == null)
+            if (root == null)
             {
                 root = current;
                 Size++;
@@ -49,10 +49,10 @@ namespace BinaryTree
             }
             else
             {
-               bool add= AddRec(root, current);
+                bool add = AddRec(root, current);
                 if (add) Size++;
             }
-           
+
         }
         private bool AddRec(Node current, Node newNode)
         {
@@ -66,19 +66,19 @@ namespace BinaryTree
                 }
                 else
                 {
-                    return AddRec(current.left,newNode);
+                    return AddRec(current.left, newNode);
                 }
             }
             else if (compresult > 0)
             {
-                if(current.right == null)
+                if (current.right == null)
                 {
                     current.right = newNode;
                     return true;
                 }
                 else
                 {
-                   return AddRec(current.right,newNode); 
+                    return AddRec(current.right, newNode);
                 }
             }
             else
@@ -97,15 +97,15 @@ namespace BinaryTree
         }
         private Node RemoveRec(Node current, K key, out bool removed)
         {
-            if(current==null)
+            if (current == null)
             {
                 removed = false;
                 return null;
-            }               
-            int compres=comparator.Compare(key, current.Key);
+            }
+            int compres = comparator.Compare(key, current.Key);
             if (compres < 0)
             {
-                current.left=RemoveRec(current.left,key, out removed);
+                current.left = RemoveRec(current.left, key, out removed);
                 return current;
             }
             else if (compres > 0)
@@ -161,12 +161,12 @@ namespace BinaryTree
         public bool ContainsKey(K key)
         {
             Node current = root;
-            
+
             while (current != null)
             {
                 int comp = comparator.Compare(key, current.Key);
                 if (comp < 0) current = current.left;
-                else if(comp > 0) current=current.right;
+                else if (comp > 0) current = current.right;
                 else
                 {
                     return true;
@@ -239,12 +239,12 @@ namespace BinaryTree
                 return default;
             }
             int comp = comparator.Compare(key, current.Key);
-            if(comp<0)
+            if (comp < 0)
             {
                 current = current.left;
                 return getValue(current, key);
             }
-            else if(comp>0)
+            else if (comp > 0)
             {
                 current = current.right;
                 return getValue(current, key);
@@ -257,15 +257,151 @@ namespace BinaryTree
         //8
         public bool IsEmpty()
         {
-            if(Size==0) return true;
+            if (Size == 0) return true;
             return false;
         }
         //12
         public int size()
         {
-           
+
             return Size;
         }
+        //9
+        public List<K> KeySet()
+        {
+            List<K> Set = new List<K>();
+            AddKeySet(root,Set);
+            return Set;
+        }
+        private void AddKeySet(Node node,List<K> set)
+        {
+            if (node == null) return;
+            AddKeySet(node.left,set);
+            set.Add(node.Key);
+            AddKeySet(node.right, set);
+        }
+        //13
+        public K firstKey()
+        {
+            Node current = root;
+            if (current == null) throw new InvalidOperationException();
+            while (current.left != null)
+            {
+                current = current.left;
+
+            }
+            return current.Key;
+        }
+        //14
+        public K lastKey()
+        {
+            Node current = root;
+            if (current == null) throw new InvalidOperationException();
+            while (current.right != null)
+            {
+                current = current.right;
+
+            }
+            return current.Key;
+        }
+        //15
+        public BinaryTreeSearch<K,D> headMap(K end)
+        {
+
+            BinaryTreeSearch<K, D> newTree = new BinaryTreeSearch<K, D>();
+            AddHeapMap(root, newTree, end);
+            return newTree;
+        }
+        private void AddHeapMap(Node node ,BinaryTreeSearch<K,D> tree, K end)
+        {
+            if (node == null) return;
+            int comp = comparator.Compare(end, node.Key);
+            AddHeapMap(node.left, tree, end);
+            if (comp < 0)
+            {
+                tree.Put(node.Key, node.Data);
+                AddHeapMap(node.right, tree, end);
+            }
+
+        }
+        //16
+        public BinaryTreeSearch<K, D> SubMap(K start,K end)
+        {
+            if(start==null || end == null)
+            {
+                throw new InvalidOperationException();
+            }
+            int comp = comparator.Compare(start, end);
+            if (comp > 0)
+            {
+                throw new InvalidOperationException();
+            }
+            
+            BinaryTreeSearch<K, D> newTree = new BinaryTreeSearch<K, D>();
+            AddSubMap(root, newTree,start, end);
+            return newTree;
+
+        }
+        private void AddSubMap(Node node,BinaryTreeSearch<K,D> tree ,K start,K end)
+        {
+            if (node == null) return;
+            int comp = comparator.Compare(node.Key, start);
+            int comp2 = comparator.Compare(node.Key,end);
+           
+            if (comp > 0)
+            {
+                AddSubMap(node.left, tree, start, end);
+            }
+            if((comp>=0 ) && comp2 < 0)
+            {
+                tree.Put(node.Key, node.Data);
+                
+            }
+            if (comp2 < 0)
+            {
+                AddSubMap(node.right, tree, start, end);
+            }
+          
+        }
+        //17
+        public BinaryTreeSearch<K, D> tailMap(K start)
+        {
+
+            BinaryTreeSearch<K, D> newTree = new BinaryTreeSearch<K, D>();
+            AddtailMap(root, newTree, start);
+            return newTree;
+        }
+        private void AddtailMap(Node node, BinaryTreeSearch<K, D> tree, K start)
+        {
+            if (node == null) return;
+            int comp = comparator.Compare(start, node.Key);
+            AddHeapMap(node.right, tree, start);
+            if (comp > 0)
+            {
+                tree.Put(node.Key, node.Data);
+                AddHeapMap(node.left, tree, start);
+            }
+           
+        }
+        //18
+        public KeyValuePair<K,D> lowerEntry(K key)
+        {
+            KeyValuePair<K, D> pair = new KeyValuePair<K, D>();
+
+        }
+        public void FindlowerEntry(Node node,K key,KeyValuePair<K,D> pair)
+        {
+            if (node == null) return;
+            int comp = comparator.Compare(key, node.Key);
+            FindlowerEntry(node.left, key,pair);
+            if (comp < 0)
+            {
+                pair.Key = node.Key;
+                
+            }
+            FindlowerEntry(node.right, key, pair);
+        }
+       
     }
 
     internal class Program
