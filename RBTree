@@ -1,0 +1,392 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+
+namespace Tree
+{
+    public enum NodeColor
+    {
+        Red,Black
+    }
+    class TreeMap<K>  where K : IComparable<K>
+    {
+        private int size;
+        public int Size { get { return size; } }
+        private Node root;
+        private readonly Comparer<K> comparer;
+        private static Random random  = new Random();
+        
+        private int Comparer(K a, K b)
+        {
+            return comparer.Compare(a, b);
+        }
+        public TreeMap(Comparer<K> comparer)
+        {
+            size = 0;
+            root = Node.NIL;
+            this.comparer = comparer;
+        }
+        public sealed  class Node
+        {
+            public Node Right;
+            public Node Left;
+            public Node Parent;
+            public K Key;
+            public NodeColor Color;
+
+            
+            public static readonly Node NIL = new Node();
+            private Node()
+            {
+                Color = NodeColor.Black;
+                Right = null;
+                Left = null;
+            }
+            public Node(K key)
+            {
+                Left=NIL;
+                Right=NIL;
+                Parent = NIL; 
+                Key = key;
+                Color = NodeColor.Red;
+                
+            }
+            
+        }
+        
+
+        
+
+
+        public void RotateLeft()
+        {
+            root = RotateLeftTo(root);
+        }
+        private Node RotateLeftTo(Node current)
+        {
+            
+            Node newRoot = current.Right;
+            current.Right = newRoot.Left;
+            if (newRoot.Left != Node.NIL)
+            {
+                newRoot.Left.Parent = current;
+            }
+
+            newRoot.Parent = current.Parent;
+            if (newRoot.Parent != Node.NIL)
+            {
+                if (newRoot.Parent.Left == current)
+                {
+                    newRoot.Parent.Left = newRoot;
+                }
+                else
+                {
+                    newRoot.Parent.Right = newRoot;
+                }
+            }
+            newRoot.Left = current;
+            current.Parent = newRoot;
+
+            return newRoot;
+        }
+
+        public void RotateRight()
+        {
+            root = RotateRightTo(root);
+        }
+
+        private Node RotateRightTo(Node current)
+        {
+           
+            
+            Node newRoot = current.Left;
+            current.Left=newRoot.Right;
+            if (newRoot.Right != Node.NIL)
+            {
+                newRoot.Right.Parent = current;
+            }
+            newRoot.Parent = current.Parent;
+            
+            if (newRoot.Parent != Node.NIL)
+            {
+                if (newRoot.Parent.Right == current)
+                {
+                    newRoot.Parent.Right = newRoot;
+                }
+                else
+                {
+                    newRoot.Parent.Left = newRoot;
+                }
+            }
+            newRoot.Right = current;
+            current.Parent = newRoot;
+
+            
+            return newRoot;
+        }
+        
+        public void Add(K key)
+        {   
+            Node newNode = new Node(key);
+            Node parent = Node.NIL;
+            Node current = root;
+
+            while (current != Node.NIL)
+            {
+                
+                parent = current;
+                int cmp = comparer.Compare(key, current.Key);
+                if (cmp < 0)
+                {
+                    
+                    current = current.Left;
+                    
+                }
+                else if (cmp > 0)
+                {
+                    current = current.Right;
+                }
+                else
+                {
+                    return; //уже есть элемент
+                }
+                
+            }
+            newNode.Parent = parent;
+            if (newNode.Parent == Node.NIL)
+            {
+                root = newNode;
+            }
+            else if (comparer.Compare(key, parent.Key) < 0)
+            {
+                parent.Left = newNode;
+            }
+            else
+            {
+                parent.Right = newNode;
+            }
+
+            size++;
+            Balance(newNode);
+            root.Color = NodeColor.Black;
+        }
+
+        public void Balance(Node newNode)
+        {
+            Node current = newNode;
+            while (current.Parent.Color == NodeColor.Red)
+            {
+                Node parent = current.Parent;
+                Node grandParent = parent.Parent;
+                Node uncle = (grandParent.Left == parent) ? grandParent.Right : grandParent.Left;
+                if (parent == grandParent.Left)
+                {
+                    //case1
+                    if (uncle != Node.NIL && uncle.Color == NodeColor.Red)
+                    {
+                        parent.Color = NodeColor.Black;
+                        uncle.Color = NodeColor.Black;
+                        grandParent.Color = NodeColor.Red;
+                        current = grandParent; //мне нужно подняться
+                    }
+                    //case2 case3
+                    else
+                    {
+                        //case2
+                        if (grandParent.Left == parent && parent.Right == current)
+                        {
+                            RotateLeftTo(parent);
+                            current = parent;
+                            parent = current.Parent;
+                            grandParent = parent.Parent;
+                        }
+                        //case3
+                        
+                            Node newRoot = RotateRightTo(grandParent);
+
+                            newRoot.Color = NodeColor.Black;
+                            newRoot.Right.Color = NodeColor.Red;
+                            current = newRoot; // текущий узел для проверки выше
+                            parent = current.Parent; // новый родитель (если есть)
+                            grandParent = parent?.Parent; // новый дед (если есть)
+
+                    }
+                }
+                else
+                {
+                    //case1
+                    if (uncle != Node.NIL && uncle.Color == NodeColor.Red)
+                    {
+                        parent.Color = NodeColor.Black;
+                        uncle.Color = NodeColor.Black;
+                        grandParent.Color = NodeColor.Red;
+                        current = grandParent; //мне нужно подняться
+                    }
+                    //case2 case3
+                    else
+                    {
+                        if (grandParent.Right == parent && parent.Left == current)
+                        {
+
+                            RotateRightTo(parent);
+                            current = parent;
+                            parent = current.Parent;
+                            grandParent = parent.Parent;
+                        }
+                        
+                        Node newRoot = RotateLeftTo(grandParent);
+                        newRoot.Color = NodeColor.Black;
+                        newRoot.Left.Color = NodeColor.Red;
+                        // Обновление ссылок
+                        current = newRoot; // текущий узел для проверки выше
+                        parent = current.Parent; // новый родитель
+                        grandParent = parent?.Parent; // новый дед
+
+                        
+                    }
+                }
+            }
+        }
+
+        
+
+        
+        
+        public void PrintTree()
+        {
+            Node current = root;
+            Print(current.Left);
+            Console.WriteLine("\t"+current.Key+" "+current.Color);
+            Print(current.Right);
+            
+        }
+
+        private void Print(Node node)
+        {
+            if(node == Node.NIL)return;
+            Print(node.Left);
+            Console.WriteLine("(" + node.Key + ") "+node.Color);
+            Print(node.Right);
+        }
+        public bool Find(K key)
+        {
+            Node current = root;
+            return FindTo(current, key);
+        }
+        private bool FindTo(Node current, K key)
+        {
+            if (current == Node.NIL)
+            {
+                return false;
+            }
+            if (comparer.Compare(key, current.Key) < 0)
+            {
+                current = current.Left;
+                return FindTo(current, key);
+            }
+            else if (comparer.Compare(key, current.Key) > 0)
+            {
+                current=current.Right;
+                return FindTo(current, key);
+            }
+            else
+            {
+                return true;
+            }
+            
+            
+        }
+
+        public void CheckRules()
+        {
+            if (root != Node.NIL)
+            {
+                if (root.Color != NodeColor.Black)
+                {
+                    Console.WriteLine("1) Ошибка"+root.Key + " Корень не черный");
+                }
+                CheckTwoRed(root);
+                int height;
+                if (root.Color == NodeColor.Black)
+                {
+                    height = 1;
+                }
+                else
+                {
+                    height = 0;
+                }
+                
+               
+                CheckBlackHeight(root);
+               
+
+                Console.WriteLine("4) В реализации всегда только черные и красные узлы");
+                Console.WriteLine("5) В реализации всегда листья null черные");
+            }
+            else
+            {
+                Console.WriteLine("Ошибка дерево пустое");
+            }
+        }
+        private void CheckTwoRed(Node current)
+        {
+            if (current.Left == Node.NIL && current.Right == Node.NIL)
+            {
+                return;
+            }
+            CheckTwoRed(current.Left);
+            if (current.Color == NodeColor.Red)
+            {
+                if (current.Left.Color == NodeColor.Red || current.Right.Color == NodeColor.Red)
+                {
+                    if (current.Left.Color == NodeColor.Red)
+                    {
+                        Console.WriteLine("2) Ошибка "+current.Key + " " + current.Left.Key+ " Два красных подряд");
+                    }
+                    else
+                    {
+                        Console.WriteLine("2) Ошибка"+current.Key + " " + current.Right.Key+ " Два красных подряд");
+                    }
+                }
+            }
+            CheckTwoRed(current.Right);
+        }
+        private int CheckBlackHeight(Node current)
+        {
+            if (current == Node.NIL)
+            {
+                return 1;
+            }
+            int leftHeight = CheckBlackHeight(current.Left);
+            int rightHeight = CheckBlackHeight(current.Right);
+
+            if (leftHeight != rightHeight)
+            {
+                Console.WriteLine($"Ошибка: у узла {current.Key} левая высота ({leftHeight}) != правой ({rightHeight})");
+                return -1; 
+            }
+            return leftHeight + (current.Color == NodeColor.Black ? 1 : 0);
+        }
+        
+    }
+    
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            TreeMap<int> treeMap = new TreeMap<int>(Comparer<int>.Default);
+            treeMap.Add(10);
+            treeMap.Add(5);
+            treeMap.Add(15);
+            treeMap.Add(3);
+            treeMap.Add(7);
+            treeMap.Add(12);
+            treeMap.Add(20);
+            treeMap.PrintTree();
+            Console.WriteLine();
+            
+            treeMap.CheckRules();
+        }
+    }
+}
+
