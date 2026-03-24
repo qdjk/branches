@@ -9,25 +9,58 @@ namespace Tree
         Black
     }
 
-    class TreeMap<K> where K : IComparable<K>
+    public delegate int TreeMapComparator<T>(T a, T b);
+
+    class MyTreeMap<K, V> where K : IComparable<K>
     {
         private int size;
-        public int Size { get { return size; } }
-
         private Node root;
-        private readonly Comparer<K> comparer;
-        private static Random random = new Random();
+        private readonly IComparer<K> comparer;
 
-        private int Comparer(K a, K b)
+        public int Size
         {
-            return comparer.Compare(a, b);
+            get { return size; }
         }
 
-        public TreeMap(Comparer<K> comparer)
+        public sealed class Node
         {
-            size = 0;
-            root = Node.NIL;
+            public Node Left;
+            public Node Right;
+            public Node Parent;
+            public K Key;
+            public V Value;
+            public NodeColor Color;
 
+            public static readonly Node NIL = new Node();
+
+            private Node()
+            {
+                Left = this;
+                Right = this;
+                Parent = this;
+                Color = NodeColor.Black;
+            }
+
+            public Node(K key, V value)
+            {
+                Key = key;
+                Value = value;
+                Left = NIL;
+                Right = NIL;
+                Parent = NIL;
+                Color = NodeColor.Red;
+            }
+        }
+
+        public MyTreeMap()
+        {
+            comparer = Comparer<K>.Default;
+            root = Node.NIL;
+            size = 0;
+        }
+
+        public MyTreeMap(IComparer<K> comparer)
+        {
             if (comparer == null)
             {
                 this.comparer = Comparer<K>.Default;
@@ -36,47 +69,32 @@ namespace Tree
             {
                 this.comparer = comparer;
             }
+
+            root = Node.NIL;
+            size = 0;
         }
 
-        public sealed class Node
+        public MyTreeMap(TreeMapComparator<K> comparator)
         {
-            public Node Right;
-            public Node Left;
-            public Node Parent;
-            public K Key;
-            public NodeColor Color;
-
-            public static readonly Node NIL = new Node();
-
-            private Node()
+            if (comparator == null)
             {
-                Color = NodeColor.Black;
-                Right = this;
-                Left = this;
-                Parent = this;
+                comparer = Comparer<K>.Default;
+            }
+            else
+            {
+                comparer = Comparer<K>.Create((a, b) => comparator(a, b));
             }
 
-            public Node(K key)
-            {
-                Left = NIL;
-                Right = NIL;
-                Parent = NIL;
-                Key = key;
-                Color = NodeColor.Red;
-            }
+            root = Node.NIL;
+            size = 0;
         }
 
-        public void RotateLeft()
+        public int CompareKeys(K a, K b)
         {
-            if (root == Node.NIL || root.Right == Node.NIL)
-            {
-                return;
-            }
-
-            root = RotateLeftTo(root);
+            return comparer.Compare(a, b);
         }
 
-        private Node RotateLeftTo(Node current)
+        private void RotateLeft(Node current)
         {
             Node newRoot = current.Right;
             current.Right = newRoot.Left;
@@ -92,35 +110,20 @@ namespace Tree
             {
                 root = newRoot;
             }
+            else if (current == current.Parent.Left)
+            {
+                current.Parent.Left = newRoot;
+            }
             else
             {
-                if (current.Parent.Left == current)
-                {
-                    current.Parent.Left = newRoot;
-                }
-                else
-                {
-                    current.Parent.Right = newRoot;
-                }
+                current.Parent.Right = newRoot;
             }
 
             newRoot.Left = current;
             current.Parent = newRoot;
-
-            return newRoot;
         }
 
-        public void RotateRight()
-        {
-            if (root == Node.NIL || root.Left == Node.NIL)
-            {
-                return;
-            }
-
-            root = RotateRightTo(root);
-        }
-
-        private Node RotateRightTo(Node current)
+        private void RotateRight(Node current)
         {
             Node newRoot = current.Left;
             current.Left = newRoot.Right;
@@ -136,129 +139,69 @@ namespace Tree
             {
                 root = newRoot;
             }
+            else if (current == current.Parent.Right)
+            {
+                current.Parent.Right = newRoot;
+            }
             else
             {
-                if (current.Parent.Right == current)
-                {
-                    current.Parent.Right = newRoot;
-                }
-                else
-                {
-                    current.Parent.Left = newRoot;
-                }
+                current.Parent.Left = newRoot;
             }
 
             newRoot.Right = current;
             current.Parent = newRoot;
-
-            return newRoot;
         }
 
-        // 6 и 7
-        public void Add(K key)
+        private void FixAfterInsert(Node current)
         {
-            Node newNode = new Node(key);
-            Node parent = Node.NIL;
-            Node current = root;
-
-            while (current != Node.NIL)
-            {
-                parent = current;
-                int cmp = comparer.Compare(key, current.Key);
-
-                if (cmp < 0)
-                {
-                    current = current.Left;
-                }
-                else if (cmp > 0)
-                {
-                    current = current.Right;
-                }
-                else
-                {
-                    return;
-                }
-            }
-
-            newNode.Parent = parent;
-
-            if (newNode.Parent == Node.NIL)
-            {
-                root = newNode;
-            }
-            else if (comparer.Compare(key, parent.Key) < 0)
-            {
-                parent.Left = newNode;
-            }
-            else
-            {
-                parent.Right = newNode;
-            }
-
-            size++;
-            Balance(newNode);
-            root.Color = NodeColor.Black;
-        }
-
-        public void Balance(Node newNode)
-        {
-            Node current = newNode;
-
             while (current.Parent.Color == NodeColor.Red)
             {
-                Node parent = current.Parent;
-                Node grandParent = parent.Parent;
-
-                if (parent == grandParent.Left)
+                if (current.Parent == current.Parent.Parent.Left)
                 {
-                    Node uncle = grandParent.Right;
+                    Node uncle = current.Parent.Parent.Right;
 
                     if (uncle.Color == NodeColor.Red)
                     {
-                        parent.Color = NodeColor.Black;
+                        current.Parent.Color = NodeColor.Black;
                         uncle.Color = NodeColor.Black;
-                        grandParent.Color = NodeColor.Red;
-                        current = grandParent;
+                        current.Parent.Parent.Color = NodeColor.Red;
+                        current = current.Parent.Parent;
                     }
                     else
                     {
-                        if (current == parent.Right)
+                        if (current == current.Parent.Right)
                         {
-                            current = parent;
-                            RotateLeftTo(current);
-                            parent = current.Parent;
-                            grandParent = parent.Parent;
+                            current = current.Parent;
+                            RotateLeft(current);
                         }
 
-                        parent.Color = NodeColor.Black;
-                        grandParent.Color = NodeColor.Red;
-                        RotateRightTo(grandParent);
+                        current.Parent.Color = NodeColor.Black;
+                        current.Parent.Parent.Color = NodeColor.Red;
+                        RotateRight(current.Parent.Parent);
                     }
                 }
                 else
                 {
-                    Node uncle = grandParent.Left;
+                    Node uncle = current.Parent.Parent.Left;
 
                     if (uncle.Color == NodeColor.Red)
                     {
-                        parent.Color = NodeColor.Black;
+                        current.Parent.Color = NodeColor.Black;
                         uncle.Color = NodeColor.Black;
-                        grandParent.Color = NodeColor.Red;
-                        current = grandParent;
+                        current.Parent.Parent.Color = NodeColor.Red;
+                        current = current.Parent.Parent;
                     }
                     else
                     {
-                        if (current == parent.Left)
+                        if (current == current.Parent.Left)
                         {
-                            current = parent;
-                            RotateRightTo(current);
-                            parent = current.Parent;
-                            grandParent = parent.Parent;
+                            current = current.Parent;
+                            RotateRight(current);
                         }
 
-                        parent.Color = NodeColor.Black;
-                        grandParent.Color = NodeColor.Red;
-                        RotateLeftTo(grandParent);
+                        current.Parent.Color = NodeColor.Black;
+                        current.Parent.Parent.Color = NodeColor.Red;
+                        RotateLeft(current.Parent.Parent);
                     }
                 }
             }
@@ -293,12 +236,7 @@ namespace Tree
 
         private Node Minimum(Node current)
         {
-            if (current == Node.NIL)
-            {
-                return Node.NIL;
-            }
-
-            while (current.Left != Node.NIL)
+            while (current != Node.NIL && current.Left != Node.NIL)
             {
                 current = current.Left;
             }
@@ -308,12 +246,7 @@ namespace Tree
 
         private Node Maximum(Node current)
         {
-            if (current == Node.NIL)
-            {
-                return Node.NIL;
-            }
-
-            while (current.Right != Node.NIL)
+            while (current != Node.NIL && current.Right != Node.NIL)
             {
                 current = current.Right;
             }
@@ -339,7 +272,7 @@ namespace Tree
             newNode.Parent = oldNode.Parent;
         }
 
-        private void BalanceAfterRemove(Node current)
+        private void FixAfterDelete(Node current)
         {
             while (current != root && current.Color == NodeColor.Black)
             {
@@ -351,7 +284,7 @@ namespace Tree
                     {
                         brother.Color = NodeColor.Black;
                         current.Parent.Color = NodeColor.Red;
-                        RotateLeftTo(current.Parent);
+                        RotateLeft(current.Parent);
                         brother = current.Parent.Right;
                     }
 
@@ -366,14 +299,14 @@ namespace Tree
                         {
                             brother.Left.Color = NodeColor.Black;
                             brother.Color = NodeColor.Red;
-                            RotateRightTo(brother);
+                            RotateRight(brother);
                             brother = current.Parent.Right;
                         }
 
                         brother.Color = current.Parent.Color;
                         current.Parent.Color = NodeColor.Black;
                         brother.Right.Color = NodeColor.Black;
-                        RotateLeftTo(current.Parent);
+                        RotateLeft(current.Parent);
                         current = root;
                     }
                 }
@@ -385,7 +318,7 @@ namespace Tree
                     {
                         brother.Color = NodeColor.Black;
                         current.Parent.Color = NodeColor.Red;
-                        RotateRightTo(current.Parent);
+                        RotateRight(current.Parent);
                         brother = current.Parent.Left;
                     }
 
@@ -400,14 +333,14 @@ namespace Tree
                         {
                             brother.Right.Color = NodeColor.Black;
                             brother.Color = NodeColor.Red;
-                            RotateLeftTo(brother);
+                            RotateLeft(brother);
                             brother = current.Parent.Left;
                         }
 
                         brother.Color = current.Parent.Color;
                         current.Parent.Color = NodeColor.Black;
                         brother.Left.Color = NodeColor.Black;
-                        RotateRightTo(current.Parent);
+                        RotateRight(current.Parent);
                         current = root;
                     }
                 }
@@ -416,7 +349,54 @@ namespace Tree
             current.Color = NodeColor.Black;
         }
 
-        // 12 и 13
+        public bool Put(K key, V value)
+        {
+            Node newNode = new Node(key, value);
+            Node parent = Node.NIL;
+            Node current = root;
+
+            while (current != Node.NIL)
+            {
+                parent = current;
+                int cmp = comparer.Compare(key, current.Key);
+
+                if (cmp < 0)
+                {
+                    current = current.Left;
+                }
+                else if (cmp > 0)
+                {
+                    current = current.Right;
+                }
+                else
+                {
+                    current.Value = value;
+                    return false;
+                }
+            }
+
+            newNode.Parent = parent;
+
+            if (parent == Node.NIL)
+            {
+                root = newNode;
+            }
+            else if (comparer.Compare(key, parent.Key) < 0)
+            {
+                parent.Left = newNode;
+            }
+            else
+            {
+                parent.Right = newNode;
+            }
+
+            size++;
+            FixAfterInsert(newNode);
+            root.Color = NodeColor.Black;
+
+            return true;
+        }
+
         public bool Remove(K key)
         {
             Node deletedNode = FindNode(key);
@@ -467,7 +447,7 @@ namespace Tree
 
             if (oldColor == NodeColor.Black)
             {
-                BalanceAfterRemove(current);
+                FixAfterDelete(current);
             }
 
             if (root != Node.NIL)
@@ -478,116 +458,1170 @@ namespace Tree
             return true;
         }
 
-        public void PrintTree()
+        public bool ContainsKey(K key)
+        {
+            return FindNode(key) != Node.NIL;
+        }
+
+        public void Clear()
+        {
+            root = Node.NIL;
+            size = 0;
+        }
+
+        public bool IsEmpty()
+        {
+            return size == 0;
+        }
+
+        public bool TryGetFirstKey(out K key)
         {
             if (root == Node.NIL)
             {
-                Console.WriteLine("Дерево пустое");
-                return;
+                key = default(K);
+                return false;
             }
 
-            Print(root);
+            key = Minimum(root).Key;
+            return true;
         }
 
-        private void Print(Node node)
+        public bool TryGetLastKey(out K key)
         {
-            if (node == Node.NIL)
+            if (root == Node.NIL)
+            {
+                key = default(K);
+                return false;
+            }
+
+            key = Maximum(root).Key;
+            return true;
+        }
+
+        public bool TryGetCeilingKey(K key, out K result)
+        {
+            Node current = root;
+            Node answer = Node.NIL;
+
+            while (current != Node.NIL)
+            {
+                int cmp = comparer.Compare(key, current.Key);
+
+                if (cmp == 0)
+                {
+                    result = current.Key;
+                    return true;
+                }
+
+                if (cmp < 0)
+                {
+                    answer = current;
+                    current = current.Left;
+                }
+                else
+                {
+                    current = current.Right;
+                }
+            }
+
+            if (answer == Node.NIL)
+            {
+                result = default(K);
+                return false;
+            }
+
+            result = answer.Key;
+            return true;
+        }
+
+        public bool TryGetFloorKey(K key, out K result)
+        {
+            Node current = root;
+            Node answer = Node.NIL;
+
+            while (current != Node.NIL)
+            {
+                int cmp = comparer.Compare(key, current.Key);
+
+                if (cmp == 0)
+                {
+                    result = current.Key;
+                    return true;
+                }
+
+                if (cmp < 0)
+                {
+                    current = current.Left;
+                }
+                else
+                {
+                    answer = current;
+                    current = current.Right;
+                }
+            }
+
+            if (answer == Node.NIL)
+            {
+                result = default(K);
+                return false;
+            }
+
+            result = answer.Key;
+            return true;
+        }
+
+        public bool TryGetHigherKey(K key, out K result)
+        {
+            Node current = root;
+            Node answer = Node.NIL;
+
+            while (current != Node.NIL)
+            {
+                int cmp = comparer.Compare(key, current.Key);
+
+                if (cmp < 0)
+                {
+                    answer = current;
+                    current = current.Left;
+                }
+                else
+                {
+                    current = current.Right;
+                }
+            }
+
+            if (answer == Node.NIL)
+            {
+                result = default(K);
+                return false;
+            }
+
+            result = answer.Key;
+            return true;
+        }
+
+        public bool TryGetLowerKey(K key, out K result)
+        {
+            Node current = root;
+            Node answer = Node.NIL;
+
+            while (current != Node.NIL)
+            {
+                int cmp = comparer.Compare(key, current.Key);
+
+                if (cmp <= 0)
+                {
+                    current = current.Left;
+                }
+                else
+                {
+                    answer = current;
+                    current = current.Right;
+                }
+            }
+
+            if (answer == Node.NIL)
+            {
+                result = default(K);
+                return false;
+            }
+
+            result = answer.Key;
+            return true;
+        }
+
+        private void FillAscending(Node current, List<K> list)
+        {
+            if (current == Node.NIL)
             {
                 return;
             }
 
-            Print(node.Left);
-            Console.WriteLine("(" + node.Key + ") " + node.Color);
-            Print(node.Right);
+            FillAscending(current.Left, list);
+            list.Add(current.Key);
+            FillAscending(current.Right, list);
         }
 
-        public bool Find(K key)
-        {
-            Node current = root;
-            return FindTo(current, key);
-        }
-
-        private bool FindTo(Node current, K key)
+        private void FillDescending(Node current, List<K> list)
         {
             if (current == Node.NIL)
+            {
+                return;
+            }
+
+            FillDescending(current.Right, list);
+            list.Add(current.Key);
+            FillDescending(current.Left, list);
+        }
+
+        public List<K> KeysAscending()
+        {
+            List<K> list = new List<K>();
+            FillAscending(root, list);
+            return list;
+        }
+
+        public List<K> KeysDescending()
+        {
+            List<K> list = new List<K>();
+            FillDescending(root, list);
+            return list;
+        }
+    }
+
+    class MyTreeSet<E> where E : IComparable<E>
+    {
+        private static readonly object PRESENT = new object();
+        private MyTreeMap<E, object> m;
+
+        private bool hasLowerBound;
+        private E lowerBound;
+        private bool lowerInclusive;
+
+        private bool hasUpperBound;
+        private E upperBound;
+        private bool upperInclusive;
+
+        private bool descending;
+
+        private MyTreeSet(MyTreeMap<E, object> map,bool hasLowerBound,E lowerBound,bool lowerInclusive,bool hasUpperBound,E upperBound,bool upperInclusive,bool descending)
+        {
+            m = map;
+
+            this.hasLowerBound = hasLowerBound;
+            this.lowerBound = lowerBound;
+            this.lowerInclusive = lowerInclusive;
+
+            this.hasUpperBound = hasUpperBound;
+            this.upperBound = upperBound;
+            this.upperInclusive = upperInclusive;
+
+            this.descending = descending;
+        }
+
+        private void CheckNull(E value)
+        {
+            if (object.ReferenceEquals(value, null))
+            {
+                throw new ArgumentNullException("value");
+            }
+        }
+
+        private bool InRange(E value)
+        {
+            if (hasLowerBound)
+            {
+                int cmp = m.CompareKeys(value, lowerBound);
+
+                if (cmp < 0)
+                {
+                    return false;
+                }
+
+                if (cmp == 0 && !lowerInclusive)
+                {
+                    return false;
+                }
+            }
+
+            if (hasUpperBound)
+            {
+                int cmp = m.CompareKeys(value, upperBound);
+
+                if (cmp > 0)
+                {
+                    return false;
+                }
+
+                if (cmp == 0 && !upperInclusive)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void CheckRangeForAdd(E value)
+        {
+            if (!InRange(value))
+            {
+                throw new ArgumentOutOfRangeException("Элемент выходит за границы текущего представления множества");
+            }
+        }
+
+        private IEnumerable<E> EnumerateVisibleAscending()
+        {
+            List<E> list = m.KeysAscending();
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (InRange(list[i]))
+                {
+                    yield return list[i];
+                }
+            }
+        }
+
+        private IEnumerable<E> EnumerateVisibleDescending()
+        {
+            List<E> list = m.KeysDescending();
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (InRange(list[i]))
+                {
+                    yield return list[i];
+                }
+            }
+        }
+
+        private IEnumerable<E> EnumerateVisible()
+        {
+            if (descending)
+            {
+                return EnumerateVisibleDescending();
+            }
+
+            return EnumerateVisibleAscending();
+        }
+
+        private bool ContainsInArray(E value, E[] array)
+        {
+            for (int i = 0; i < array.Length; i++)
+            {
+                if (m.CompareKeys(value, array[i]) == 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool TryGetFirstVisible(out E value)
+        {
+            bool ok;
+
+            if (!descending)
+            {
+                if (hasLowerBound)
+                {
+                    if (lowerInclusive)
+                    {
+                        ok = m.TryGetCeilingKey(lowerBound, out value);
+                    }
+                    else
+                    {
+                        ok = m.TryGetHigherKey(lowerBound, out value);
+                    }
+                }
+                else
+                {
+                    ok = m.TryGetFirstKey(out value);
+                }
+            }
+            else
+            {
+                if (hasUpperBound)
+                {
+                    if (upperInclusive)
+                    {
+                        ok = m.TryGetFloorKey(upperBound, out value);
+                    }
+                    else
+                    {
+                        ok = m.TryGetLowerKey(upperBound, out value);
+                    }
+                }
+                else
+                {
+                    ok = m.TryGetLastKey(out value);
+                }
+            }
+
+            if (!ok)
+            {
+                value = default(E);
+                return false;
+            }
+
+            if (!InRange(value))
+            {
+                value = default(E);
+                return false;
+            }
+
+            return true;
+        }
+
+        private bool TryGetLastVisible(out E value)
+        {
+            bool ok;
+
+            if (!descending)
+            {
+                if (hasUpperBound)
+                {
+                    if (upperInclusive)
+                    {
+                        ok = m.TryGetFloorKey(upperBound, out value);
+                    }
+                    else
+                    {
+                        ok = m.TryGetLowerKey(upperBound, out value);
+                    }
+                }
+                else
+                {
+                    ok = m.TryGetLastKey(out value);
+                }
+            }
+            else
+            {
+                if (hasLowerBound)
+                {
+                    if (lowerInclusive)
+                    {
+                        ok = m.TryGetCeilingKey(lowerBound, out value);
+                    }
+                    else
+                    {
+                        ok = m.TryGetHigherKey(lowerBound, out value);
+                    }
+                }
+                else
+                {
+                    ok = m.TryGetFirstKey(out value);
+                }
+            }
+
+            if (!ok)
+            {
+                value = default(E);
+                return false;
+            }
+
+            if (!InRange(value))
+            {
+                value = default(E);
+                return false;
+            }
+
+            return true;
+        }
+
+        private MyTreeSet<E> CreateView(bool addLower,E newLower,bool newLowerInclusive,bool addUpper,E newUpper,bool newUpperInclusive,bool newDescending)
+        {
+            bool finalHasLower = hasLowerBound;
+            E finalLower = lowerBound;
+            bool finalLowerInclusive = lowerInclusive;
+
+            bool finalHasUpper = hasUpperBound;
+            E finalUpper = upperBound;
+            bool finalUpperInclusive = upperInclusive;
+
+            if (addLower)
+            {
+                if (!finalHasLower)
+                {
+                    finalHasLower = true;
+                    finalLower = newLower;
+                    finalLowerInclusive = newLowerInclusive;
+                }
+                else
+                {
+                    int cmp = m.CompareKeys(newLower, finalLower);
+
+                    if (cmp > 0)
+                    {
+                        finalLower = newLower;
+                        finalLowerInclusive = newLowerInclusive;
+                    }
+                    else if (cmp == 0)
+                    {
+                        finalLowerInclusive = finalLowerInclusive && newLowerInclusive;
+                    }
+                }
+            }
+
+            if (addUpper)
+            {
+                if (!finalHasUpper)
+                {
+                    finalHasUpper = true;
+                    finalUpper = newUpper;
+                    finalUpperInclusive = newUpperInclusive;
+                }
+                else
+                {
+                    int cmp = m.CompareKeys(newUpper, finalUpper);
+
+                    if (cmp < 0)
+                    {
+                        finalUpper = newUpper;
+                        finalUpperInclusive = newUpperInclusive;
+                    }
+                    else if (cmp == 0)
+                    {
+                        finalUpperInclusive = finalUpperInclusive && newUpperInclusive;
+                    }
+                }
+            }
+
+            if (finalHasLower && finalHasUpper)
+            {
+                int cmp = m.CompareKeys(finalLower, finalUpper);
+
+                if (cmp > 0)
+                {
+                    throw new ArgumentException("Нижняя граница больше верхней");
+                }
+            }
+
+            return new MyTreeSet<E>(m,finalHasLower,finalLower,finalLowerInclusive,finalHasUpper,finalUpper,finalUpperInclusive,newDescending);
+        }
+
+        //1
+        public MyTreeSet()
+        {
+            m = new MyTreeMap<E, object>();
+            hasLowerBound = false;
+            hasUpperBound = false;
+            descending = false;
+        }
+
+        //2
+        public MyTreeSet(MyTreeMap<E, object> m)
+        {
+            if (m == null)
+            {
+                throw new ArgumentNullException("m");
+            }
+
+            this.m = m;
+            hasLowerBound = false;
+            hasUpperBound = false;
+            descending = false;
+        }
+
+        //3
+        public MyTreeSet(TreeMapComparator<E> comparator)
+        {
+            if (comparator == null)
+            {
+                throw new ArgumentNullException("comparator");
+            }
+
+            m = new MyTreeMap<E, object>(comparator);
+            hasLowerBound = false;
+            hasUpperBound = false;
+            descending = false;
+        }
+
+        //4
+        public MyTreeSet(E[] a)
+        {
+            if (a == null)
+            {
+                throw new ArgumentNullException("a");
+            }
+
+            m = new MyTreeMap<E, object>();
+            hasLowerBound = false;
+            hasUpperBound = false;
+            descending = false;
+
+            addAll(a);
+        }
+
+        //5
+        public MyTreeSet(SortedSet<E> s)
+        {
+            if (s == null)
+            {
+                throw new ArgumentNullException("s");
+            }
+
+            m = new MyTreeMap<E, object>(s.Comparer);
+            hasLowerBound = false;
+            hasUpperBound = false;
+            descending = false;
+
+            foreach (E item in s)
+            {
+                add(item);
+            }
+        }
+
+        //6
+        public bool add(E e)
+        {
+            CheckNull(e);
+            CheckRangeForAdd(e);
+            return m.Put(e, PRESENT);
+        }
+
+        //7
+        public bool addAll(E[] a)
+        {
+            if (a == null)
+            {
+                throw new ArgumentNullException("a");
+            }
+
+            bool changed = false;
+
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (add(a[i]))
+                {
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
+        //8
+        public void clear()
+        {
+            if (!hasLowerBound && !hasUpperBound)
+            {
+                m.Clear();
+                return;
+            }
+
+            List<E> list = new List<E>();
+
+            foreach (E item in EnumerateVisibleAscending())
+            {
+                list.Add(item);
+            }
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                m.Remove(list[i]);
+            }
+        }
+
+        //9
+        public bool contains(object o)
+        {
+            if (!(o is E))
             {
                 return false;
             }
 
-            if (comparer.Compare(key, current.Key) < 0)
+            E value = (E)o;
+
+            if (!InRange(value))
             {
-                return FindTo(current.Left, key);
+                return false;
             }
-            else if (comparer.Compare(key, current.Key) > 0)
+
+            return m.ContainsKey(value);
+        }
+
+        //10
+        public bool containsAll(E[] a)
+        {
+            if (a == null)
             {
-                return FindTo(current.Right, key);
+                throw new ArgumentNullException("a");
+            }
+
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (!contains(a[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        //11
+        public bool isEmpty()
+        {
+            E value;
+            return !TryGetFirstVisible(out value);
+        }
+
+        //12
+        public bool remove(object o)
+        {
+            if (!(o is E))
+            {
+                return false;
+            }
+
+            E value = (E)o;
+
+            if (!InRange(value))
+            {
+                return false;
+            }
+
+            return m.Remove(value);
+        }
+
+        //13
+        public bool removeAll(E[] a)
+        {
+            if (a == null)
+            {
+                throw new ArgumentNullException("a");
+            }
+
+            bool changed = false;
+
+            for (int i = 0; i < a.Length; i++)
+            {
+                if (remove(a[i]))
+                {
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
+        //14
+        public bool retainAll(E[] a)
+        {
+            if (a == null)
+            {
+                throw new ArgumentNullException("a");
+            }
+
+            List<E> list = new List<E>();
+
+            foreach (E item in EnumerateVisibleAscending())
+            {
+                if (!ContainsInArray(item, a))
+                {
+                    list.Add(item);
+                }
+            }
+
+            bool changed = false;
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (m.Remove(list[i]))
+                {
+                    changed = true;
+                }
+            }
+
+            return changed;
+        }
+
+        //15
+        public int size()
+        {
+            if (!hasLowerBound && !hasUpperBound)
+            {
+                return m.Size;
+            }
+
+            int count = 0;
+
+            foreach (E item in EnumerateVisibleAscending())
+            {
+                count++;
+            }
+
+            return count;
+        }
+
+        //16
+        public object[] toArray()
+        {
+            List<object> list = new List<object>();
+
+            foreach (E item in EnumerateVisible())
+            {
+                list.Add(item);
+            }
+
+            return list.ToArray();
+        }
+
+        //17
+        public E[] toArray(E[] a)
+        {
+            List<E> list = new List<E>();
+
+            foreach (E item in EnumerateVisible())
+            {
+                list.Add(item);
+            }
+
+            if (a == null || a.Length < list.Count)
+            {
+                a = new E[list.Count];
+            }
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                a[i] = list[i];
+            }
+
+            if (a.Length > list.Count)
+            {
+                a[list.Count] = default(E);
+            }
+
+            return a;
+        }
+
+        //18
+        public E first()
+        {
+            E value;
+
+            if (!TryGetFirstVisible(out value))
+            {
+                throw new InvalidOperationException("Множество пустое");
+            }
+
+            return value;
+        }
+
+        //19
+        public E last()
+        {
+            E value;
+
+            if (!TryGetLastVisible(out value))
+            {
+                throw new InvalidOperationException("Множество пустое");
+            }
+
+            return value;
+        }
+
+        //20
+        public MyTreeSet<E> subSet(E fromElement, E toElement)
+        {
+            CheckNull(fromElement);
+            CheckNull(toElement);
+
+            if (m.CompareKeys(fromElement, toElement) > 0)
+            {
+                throw new ArgumentException("fromElement больше toElement");
+            }
+
+            return CreateView(true, fromElement, true, true, toElement, false, descending);
+        }
+
+        //21
+        public MyTreeSet<E> headSet(E toElement)
+        {
+            CheckNull(toElement);
+            return CreateView(false, default(E), false, true, toElement, false, descending);
+        }
+
+        //22
+        public MyTreeSet<E> tailSet(E fromElement)
+        {
+            CheckNull(fromElement);
+            return CreateView(true, fromElement, true, false, default(E), false, descending);
+        }
+
+        //23
+        public E ceiling(E obj)
+        {
+            CheckNull(obj);
+
+            E value;
+            bool ok;
+
+            if (hasLowerBound)
+            {
+                int cmp = m.CompareKeys(obj, lowerBound);
+
+                if (cmp < 0)
+                {
+                    if (lowerInclusive)
+                    {
+                        ok = m.TryGetCeilingKey(lowerBound, out value);
+                    }
+                    else
+                    {
+                        ok = m.TryGetHigherKey(lowerBound, out value);
+                    }
+                }
+                else if (cmp == 0 && !lowerInclusive)
+                {
+                    ok = m.TryGetHigherKey(lowerBound, out value);
+                }
+                else
+                {
+                    ok = m.TryGetCeilingKey(obj, out value);
+                }
             }
             else
             {
-                return true;
+                ok = m.TryGetCeilingKey(obj, out value);
             }
+
+            if (!ok || !InRange(value))
+            {
+                return default(E);
+            }
+
+            return value;
         }
 
-        public void CheckRules()
+        //24
+        public E floor(E obj)
         {
-            if (root == Node.NIL)
+            CheckNull(obj);
+
+            E value;
+            bool ok;
+
+            if (hasUpperBound)
             {
-                Console.WriteLine("Ошибка: дерево пустое");
-                return;
-            }
+                int cmp = m.CompareKeys(obj, upperBound);
 
-            if (root.Color != NodeColor.Black)
-            {
-                Console.WriteLine("1) Ошибка: " + root.Key + " корень не черный");
-            }
-
-            CheckTwoRed(root);
-            CheckBlackHeight(root);
-
-            Console.WriteLine("4) В реализации всегда только черные и красные узлы");
-            Console.WriteLine("5) В реализации всегда листья NIL черные");
-        }
-
-        private void CheckTwoRed(Node current)
-        {
-            if (current == Node.NIL)
-            {
-                return;
-            }
-
-            if (current.Color == NodeColor.Red)
-            {
-                if (current.Left.Color == NodeColor.Red)
+                if (cmp > 0)
                 {
-                    Console.WriteLine("2) Ошибка: " + current.Key + " " + current.Left.Key + " два красных подряд");
+                    if (upperInclusive)
+                    {
+                        ok = m.TryGetFloorKey(upperBound, out value);
+                    }
+                    else
+                    {
+                        ok = m.TryGetLowerKey(upperBound, out value);
+                    }
                 }
-
-                if (current.Right.Color == NodeColor.Red)
+                else if (cmp == 0 && !upperInclusive)
                 {
-                    Console.WriteLine("2) Ошибка: " + current.Key + " " + current.Right.Key + " два красных подряд");
+                    ok = m.TryGetLowerKey(upperBound, out value);
+                }
+                else
+                {
+                    ok = m.TryGetFloorKey(obj, out value);
                 }
             }
+            else
+            {
+                ok = m.TryGetFloorKey(obj, out value);
+            }
 
-            CheckTwoRed(current.Left);
-            CheckTwoRed(current.Right);
+            if (!ok || !InRange(value))
+            {
+                return default(E);
+            }
+
+            return value;
         }
 
-        private int CheckBlackHeight(Node current)
+        //25
+        public E higher(E obj)
         {
-            if (current == Node.NIL)
+            CheckNull(obj);
+
+            E value;
+            bool ok;
+
+            if (hasLowerBound)
             {
-                return 1;
+                int cmp = m.CompareKeys(obj, lowerBound);
+
+                if (cmp < 0)
+                {
+                    if (lowerInclusive)
+                    {
+                        ok = m.TryGetCeilingKey(lowerBound, out value);
+                    }
+                    else
+                    {
+                        ok = m.TryGetHigherKey(lowerBound, out value);
+                    }
+                }
+                else if (cmp == 0 && !lowerInclusive)
+                {
+                    ok = m.TryGetHigherKey(lowerBound, out value);
+                }
+                else
+                {
+                    ok = m.TryGetHigherKey(obj, out value);
+                }
+            }
+            else
+            {
+                ok = m.TryGetHigherKey(obj, out value);
             }
 
-            int leftHeight = CheckBlackHeight(current.Left);
-            int rightHeight = CheckBlackHeight(current.Right);
-
-            if (leftHeight != rightHeight)
+            if (!ok || !InRange(value))
             {
-                Console.WriteLine("3) Ошибка: у узла " + current.Key + " левая высота (" + leftHeight + ") != правой (" + rightHeight + ")");
+                return default(E);
             }
 
-            return leftHeight + (current.Color == NodeColor.Black ? 1 : 0);
+            return value;
+        }
+
+        //26
+        public E lower(E obj)
+        {
+            CheckNull(obj);
+
+            E value;
+            bool ok;
+
+            if (hasUpperBound)
+            {
+                int cmp = m.CompareKeys(obj, upperBound);
+
+                if (cmp > 0)
+                {
+                    if (upperInclusive)
+                    {
+                        ok = m.TryGetFloorKey(upperBound, out value);
+                    }
+                    else
+                    {
+                        ok = m.TryGetLowerKey(upperBound, out value);
+                    }
+                }
+                else if (cmp == 0 && !upperInclusive)
+                {
+                    ok = m.TryGetLowerKey(upperBound, out value);
+                }
+                else
+                {
+                    ok = m.TryGetLowerKey(obj, out value);
+                }
+            }
+            else
+            {
+                ok = m.TryGetLowerKey(obj, out value);
+            }
+
+            if (!ok || !InRange(value))
+            {
+                return default(E);
+            }
+
+            return value;
+        }
+
+        //27
+        public MyTreeSet<E> headSet(E upperBound, bool incl)
+        {
+            CheckNull(upperBound);
+            return CreateView(false, default(E), false, true, upperBound, incl, descending);
+        }
+
+        //28
+        public MyTreeSet<E> subSet(E lowerBound, bool lowIncl, E upperBound, bool highIncl)
+        {
+            CheckNull(lowerBound);
+            CheckNull(upperBound);
+
+            if (m.CompareKeys(lowerBound, upperBound) > 0)
+            {
+                throw new ArgumentException("lowerBound больше upperBound");
+            }
+
+            return CreateView(true, lowerBound, lowIncl, true, upperBound, highIncl, descending);
+        }
+
+        //29
+        public MyTreeSet<E> tailSet(E fromElement, bool inclusive)
+        {
+            CheckNull(fromElement);
+            return CreateView(true, fromElement, inclusive, false, default(E), false, descending);
+        }
+
+        //30
+        public E pollLast()
+        {
+            E value;
+
+            if (!TryGetLastVisible(out value))
+            {
+                return default(E);
+            }
+
+            m.Remove(value);
+            return value;
+        }
+
+        //31
+        public E pollFirst()
+        {
+            E value;
+
+            if (!TryGetFirstVisible(out value))
+            {
+                return default(E);
+            }
+
+            m.Remove(value);
+            return value;
+        }
+
+        //32
+        public IEnumerable<E> descendingIterator()
+        {
+            if (descending)
+            {
+                return EnumerateVisibleAscending();
+            }
+
+            return EnumerateVisibleDescending();
+        }
+
+        //33
+        public MyTreeSet<E> descendingSet()
+        {
+            return new MyTreeSet<E>(m,hasLowerBound,lowerBound,lowerInclusive, hasUpperBound,upperBound,upperInclusive,!descending);
+        }
+    }
+
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            MyTreeSet<int> set = new MyTreeSet<int>();
+
+            set.add(10);
+            set.add(5);
+            set.add(15);
+            set.add(3);
+            set.add(7);
+            set.add(12);
+            set.add(20);
+
+            Console.WriteLine("size = " + set.size());
+            Console.WriteLine("contains 7 = " + set.contains(7));
+            Console.WriteLine("contains 100 = " + set.contains(100));
+            Console.WriteLine("first = " + set.first());
+            Console.WriteLine("last = " + set.last());
+
+            Console.WriteLine();
+            Console.WriteLine();
+
+            Console.WriteLine("pollFirst = " + set.pollFirst());
+            Console.WriteLine("pollLast = " + set.pollLast());
+            Console.WriteLine("size after poll = " + set.size());
+
+            Console.WriteLine();
+            Console.WriteLine("final toArray:");
+            object[] arr2 = set.toArray();
+            for (int i = 0; i < arr2.Length; i++)
+            {
+                Console.Write(arr2[i] + " ");
+            }
+
+            Console.WriteLine();
         }
     }
 }
