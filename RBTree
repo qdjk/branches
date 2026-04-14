@@ -11,7 +11,7 @@ namespace Tree
 
     public delegate int TreeMapComparator<T>(T a, T b);
 
-    class MyTreeMap<K, V> where K : IComparable<K>
+    public class MyTreeMap<K, V> where K : IComparable<K>
     {
         private int size;
         private Node root;
@@ -669,7 +669,7 @@ namespace Tree
         }
     }
 
-    class MyTreeSet<E> where E : IComparable<E>
+    public class MyTreeSet<E> where E : IComparable<E>
     {
         private static readonly object PRESENT = new object();
         private MyTreeMap<E, object> m;
