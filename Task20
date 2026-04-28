@@ -1,0 +1,132 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
+namespace ConsoleApp40
+{
+    internal class Program
+    {
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Введите номер задачи:");
+            Console.WriteLine("9 - Крускал");
+            Console.WriteLine("12 - Максимальный поток");
+            Console.WriteLine("15 - Максимальная клика");
+
+            int task = int.Parse(Console.ReadLine());
+
+            if (task == 9)
+            {
+                Kruskal();
+            }
+            else if (task == 12)
+            {
+            }
+            else if (task == 15)
+            {
+            }
+            else
+            {
+                Console.WriteLine("Такой задачи нет");
+            }
+        }
+
+
+        // 9) Построение минимального остовного леса. Алгоритм Крускала.
+      
+
+        class Edge
+        {
+            public int from;
+            public int to;
+            public int weight;
+        }
+
+        static void Kruskal()
+        {
+            Console.WriteLine("Введите количество вершин и ребер:");
+            string[] s = Console.ReadLine().Split();
+
+            int n = int.Parse(s[0]);
+            int m = int.Parse(s[1]);
+
+            List<Edge> edges = new List<Edge>();
+
+            Console.WriteLine("Введите ребра: откуда куда вес");
+
+            for (int i = 0; i < m; i++)
+            {
+                s = Console.ReadLine().Split();
+
+                Edge edge = new Edge();
+                edge.from = int.Parse(s[0]);
+                edge.to = int.Parse(s[1]);
+                edge.weight = int.Parse(s[2]);
+
+                edges.Add(edge);
+            }
+
+            edges.Sort(CompareEdges);
+
+            int[] parent = new int[n + 1];
+
+            for (int i = 1; i <= n; i++)
+            {
+                parent[i] = i;
+            }
+
+            int totalWeight = 0;
+
+            Console.WriteLine("Ребра минимального остовного леса:");
+
+            for (int i = 0; i < edges.Count; i++)
+            {
+                int a = edges[i].from;
+                int b = edges[i].to;
+
+                int rootA = Find(parent, a);
+                int rootB = Find(parent, b);
+
+                if (rootA != rootB)
+                {
+                    parent[rootB] = rootA;
+
+                    Console.WriteLine(edges[i].from + " " + edges[i].to + " " + edges[i].weight);
+
+                    totalWeight = totalWeight + edges[i].weight;
+                }
+            }
+
+            Console.WriteLine("Общий вес:");
+            Console.WriteLine(totalWeight);
+        }
+
+        static int CompareEdges(Edge a, Edge b)
+        {
+            if (a.weight < b.weight)
+            {
+                return -1;
+            }
+            else if (a.weight > b.weight)
+            {
+                return 1;
+            }
+            else
+            {
+                return 0;
+            }
+        }
+
+        static int Find(int[] parent, int v)
+        {
+            while (parent[v] != v)
+            {
+                v = parent[v];
+            }
+
+            return v;
+        }
+    }
+}
