@@ -128,5 +128,264 @@ namespace ConsoleApp40
 
             return v;
         }
+        
+        
+        // 12. Максимальный поток. Алгоритм проталкивания предпотока
+        
+         static void MaxFlow()
+        {
+            Console.WriteLine("Введите n, m, исток, сток:");
+            string[] s = Console.ReadLine().Split();
+
+            int n = int.Parse(s[0]);
+            int m = int.Parse(s[1]);
+            int start = int.Parse(s[2]);
+            int finish = int.Parse(s[3]);
+
+            int[,] capacity = new int[n + 1, n + 1];
+            int[,] flow = new int[n + 1, n + 1];
+
+            List<int>[] graph = new List<int>[n + 1];
+
+            for (int i = 1; i <= n; i++)
+            {
+                graph[i] = new List<int>();
+            }
+
+            Console.WriteLine("Введите дуги: откуда куда пропускная_способность");
+
+            for (int i = 0; i < m; i++)
+            {
+                s = Console.ReadLine().Split();
+
+                int from = int.Parse(s[0]);
+                int to = int.Parse(s[1]);
+                int c = int.Parse(s[2]);
+
+                capacity[from, to] = capacity[from, to] + c;
+
+                graph[from].Add(to);
+                graph[to].Add(from);
+            }
+
+            int[] height = new int[n + 1];
+            int[] excess = new int[n + 1];
+
+            height[start] = n;
+
+            for (int i = 0; i < graph[start].Count; i++)
+            {
+                int to = graph[start][i];
+
+                flow[start, to] = capacity[start, to];
+                flow[to, start] = -flow[start, to];
+
+                excess[to] = excess[to] + capacity[start, to];
+                excess[start] = excess[start] - capacity[start, to];
+            }
+
+            while (true)
+            {
+                int v = -1;
+
+                for (int i = 1; i <= n; i++)
+                {
+                    if (i != start && i != finish && excess[i] > 0)
+                    {
+                        v = i;
+                        break;
+                    }
+                }
+
+                if (v == -1)
+                {
+                    break;
+                }
+
+                bool pushed = false;
+
+                for (int i = 0; i < graph[v].Count; i++)
+                {
+                    int to = graph[v][i];
+
+                    if (capacity[v, to] - flow[v, to] > 0 && height[v] == height[to] + 1)
+                    {
+                        int canPush = capacity[v, to] - flow[v, to];
+
+                        if (excess[v] < canPush)
+                        {
+                            canPush = excess[v];
+                        }
+
+                        flow[v, to] = flow[v, to] + canPush;
+                        flow[to, v] = flow[to, v] - canPush;
+
+                        excess[v] = excess[v] - canPush;
+                        excess[to] = excess[to] + canPush;
+
+                        pushed = true;
+
+                        if (excess[v] == 0)
+                        {
+                            break;
+                        }
+                    }
+                }
+
+                if (pushed == false)
+                {
+                    int minHeight = 1000000000;
+
+                    for (int i = 0; i < graph[v].Count; i++)
+                    {
+                        int to = graph[v][i];
+
+                        if (capacity[v, to] - flow[v, to] > 0)
+                        {
+                            if (height[to] < minHeight)
+                            {
+                                minHeight = height[to];
+                            }
+                        }
+                    }
+
+                    if (minHeight < 1000000000)
+                    {
+                        height[v] = minHeight + 1;
+                    }
+                }
+            }
+
+            Console.WriteLine("Максимальный поток:");
+            Console.WriteLine(excess[finish]);
+
+            Console.WriteLine("Поток по дугам:");
+
+            for (int i = 1; i <= n; i++)
+            {
+                for (int j = 1; j <= n; j++)
+                {
+                    if (capacity[i, j] > 0)
+                    {
+                        Console.WriteLine(i + " " + j + " " + flow[i, j] + "/" + capacity[i, j]);
+                    }
+                }
+            }
+        }
+        
+        // 15. Максимальная клика. Алгоритм Брона-Кербоша
+         
+        static bool[,] matrix;
+        static List<int> bestClique;
+
+        static void MaxClique()
+        {
+            Console.WriteLine("Введите количество вершин и ребер:");
+            string[] s = Console.ReadLine().Split();
+
+            int n = int.Parse(s[0]);
+            int m = int.Parse(s[1]);
+
+            matrix = new bool[n + 1, n + 1];
+
+            Console.WriteLine("Введите ребра: вершина1 вершина2");
+
+            for (int i = 0; i < m; i++)
+            {
+                s = Console.ReadLine().Split();
+
+                int a = int.Parse(s[0]);
+                int b = int.Parse(s[1]);
+
+                matrix[a, b] = true;
+                matrix[b, a] = true;
+            }
+
+            List<int> r = new List<int>();
+            List<int> p = new List<int>();
+            List<int> x = new List<int>();
+
+            for (int i = 1; i <= n; i++)
+            {
+                p.Add(i);
+            }
+
+            bestClique = new List<int>();
+
+            BronKerbosch(r, p, x);
+
+            Console.WriteLine("Размер максимальной клики:");
+            Console.WriteLine(bestClique.Count);
+
+            Console.WriteLine("Вершины максимальной клики:");
+
+            for (int i = 0; i < bestClique.Count; i++)
+            {
+                Console.Write(bestClique[i] + " ");
+            }
+
+            Console.WriteLine();
+        }
+
+        static void BronKerbosch(List<int> r, List<int> p, List<int> x)
+        {
+            if (p.Count == 0 && x.Count == 0)
+            {
+                if (r.Count > bestClique.Count)
+                {
+                    bestClique = new List<int>();
+
+                    for (int i = 0; i < r.Count; i++)
+                    {
+                        bestClique.Add(r[i]);
+                    }
+                }
+
+                return;
+            }
+
+            List<int> copyP = new List<int>();
+
+            for (int i = 0; i < p.Count; i++)
+            {
+                copyP.Add(p[i]);
+            }
+
+            for (int i = 0; i < copyP.Count; i++)
+            {
+                int v = copyP[i];
+
+                r.Add(v);
+
+                List<int> newP = new List<int>();
+                List<int> newX = new List<int>();
+
+                for (int j = 0; j < p.Count; j++)
+                {
+                    int vertex = p[j];
+
+                    if (matrix[v, vertex] == true)
+                    {
+                        newP.Add(vertex);
+                    }
+                }
+
+                for (int j = 0; j < x.Count; j++)
+                {
+                    int vertex = x[j];
+
+                    if (matrix[v, vertex] == true)
+                    {
+                        newX.Add(vertex);
+                    }
+                }
+
+                BronKerbosch(r, newP, newX);
+
+                r.Remove(v);
+                p.Remove(v);
+                x.Add(v);
+            }
+        }
     }
 }
