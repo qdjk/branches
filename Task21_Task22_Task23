@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
 using System.Text.RegularExpressions;
@@ -10,7 +11,8 @@ namespace ConsoleApp40
     {
         Int,
         Float,
-        Double
+        Double,
+        Unknown
     }
     class VariableInfo
     {
@@ -32,6 +34,8 @@ namespace ConsoleApp40
             Regex regex = new Regex(@"([A-Za-z][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([0-9]+)\s*;");
 
             MatchCollection matches = regex.Matches(text);
+
+            List<string> textUnknown = new List<string>();
 
             for (int i = 0; i < matches.Count; i++)
             {
@@ -55,7 +59,8 @@ namespace ConsoleApp40
                 }
                 else
                 {
-                    Console.WriteLine("Некорректное определение: неизвестный тип " + typeText + " у переменной " + name);
+                    Console.WriteLine("Неизвестный тип " + typeText + " у переменной " + name);
+                    textUnknown.Add(typeText + " " + name + " => " + value);
                     continue;
                 }
 
@@ -93,8 +98,18 @@ namespace ConsoleApp40
                 result += typeText + " => " + entries[i].Key + "(" + entries[i].Value.Value + ")\n";
             }
 
+            result += "\n";
+            result += "Все неизвестные переменные:\n";
+
+            for (int i = 0; i < textUnknown.Count; i++)
+            {
+                result += textUnknown[i] + "\n";
+            }
+
             File.WriteAllText("/Users/m/Documents/JetBrains Rider/c#/MyHashMap/MyHashMap/output23.txt", result);
         }
+
+        
         static void Task22(MyHashMap<string, int> map)
         {
             StreamReader reader = new StreamReader("/Users/m/Documents/JetBrains Rider/c#/MyHashMap/MyHashMap/input.txt"); 
